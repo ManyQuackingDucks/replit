@@ -15,7 +15,8 @@ impl Db {
     pub fn new() -> Result<Self> {
         Ok(Self::new_with_url(std::env::var("REPLIT_DB_URL").unwrap()))
     }
-    pub fn new_with_url(url: String) -> Self{
+    pub fn new_with_url(url: String) -> Self {
+        debug!("{}", url);
         Self {
             uri: url,
             client: Client::builder().build::<_, hyper::Body>(HttpsConnector::new()),
@@ -31,15 +32,17 @@ impl Db {
             .expect("request builder");
         let res = self.client.request(req).await.unwrap();
         if res.status().is_success() {
-            return Ok(());
+            
+            Ok(())
+        } else {
+            error!(
+                "Failed to insert key into db. Status code: {}, Input: {}={}",
+                res.status(),
+                k,
+                v
+            );
+            Err(DBErrors::NotSucc)
         }
-        error!(
-            "Failed to insert key into db. Status code: {}, Input: {}={}",
-            res.status(),
-            k,
-            v
-        );
-        Err(DBErrors::NotSucc)
     }
     ///Deletes a key from the db.
     pub async fn delete(&self, k: &str) -> Result<()> {
@@ -50,14 +53,15 @@ impl Db {
             .expect("request builder");
         let res = self.client.request(req).await.unwrap();
         if res.status().is_success() {
-            return Ok(());
+            Ok(())
+        } else {
+            error!(
+                "Failed to remove key from db. Status code: {}, Input: {}",
+                res.status(),
+                k
+            );
+            Err(DBErrors::NotSucc)
         }
-        error!(
-            "Failed to remove key from db. Status code: {}, Input: {}",
-            res.status(),
-            k
-        );
-        Err(DBErrors::NotSucc)
     }
     ///Gets a key from the db.
     pub async fn get(&self, k: &str) -> Result<String> {
@@ -69,14 +73,15 @@ impl Db {
         if res.status().is_success() {
             let buf = hyper::body::to_bytes(res).await.unwrap().to_vec();
             let string = std::str::from_utf8(&buf).unwrap();
-            return Ok(string.to_owned()); //returns a borrowed string that lasts the Db's lifetime
+            Ok(string.to_owned()) //returns a borrowed string that lasts the Db's lifetime
+        } else {
+            error!(
+                "Failed to get key from db. Status code: {}, Input: {}",
+                res.status(),
+                k
+            );
+            Err(DBErrors::NotSucc)
         }
-        error!(
-            "Failed to get key from db. Status code: {}, Input: {}",
-            res.status(),
-            k
-        );
-        Err(DBErrors::NotSucc)
     }
     ///Lists keys begining with an optional prefix.
     ///If None is supplied then list will output all keys.
@@ -90,11 +95,14 @@ impl Db {
             let buf = hyper::body::to_bytes(res).await.unwrap().to_vec();
             let string = std::str::from_utf8(&buf).unwrap();
             let vec: Vec<String> = string.lines().map(|i| i.to_string()).collect();
-            return Ok(vec);
+            Ok(vec)
+        } else {
+            error!(
+                "Failed to list keys from db. Status code: {}, Input: {:?}",
+                res.status(),
+                prefix
+            );
+            Err(DBErrors::NotSucc)
         }
-        error!(
-            "Failed to list keys from db. Status code: {}, Input: {:?}",res.status(),prefix
-        );
-        Err(DBErrors::NotSucc)
     }
 }

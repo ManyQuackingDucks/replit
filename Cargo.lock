@@ -419,6 +419,7 @@ version = "0.1.0"
 dependencies = [
  "hyper",
  "hyper-tls",
+ "lazy_static",
  "log",
  "thiserror",
  "tokio",
