@@ -1,0 +1,18 @@
+[package]
+name = "replit"
+version = "0.1.0"
+authors = ["runner"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyper = {version = "0.14.6", default-features=false, features = ["http2", "client", "runtime", "tcp", "http1"]}
+thiserror = "1.0.30"
+hyper-tls = "0.5.0"
+log = "0.4.14"
+
+[dev-dependencies]
+tokio = {version = "1.15.0", default-features=false, features = ["macros", "rt"]}
+
+[lib]
