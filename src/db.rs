@@ -30,9 +30,8 @@ impl Db {
             .uri(format!("{}/{}={}", self.uri, k, v).parse::<Uri>().unwrap())
             .body(Body::from(""))
             .expect("request builder");
-        let res = self.client.request(req).await.unwrap();
+        let res = self.client.request(req).await?;
         if res.status().is_success() {
-            
             Ok(())
         } else {
             error!(
@@ -51,7 +50,7 @@ impl Db {
             .uri(format!("{}/{}", self.uri, k).parse::<Uri>().unwrap())
             .body(Body::from(""))
             .expect("request builder");
-        let res = self.client.request(req).await.unwrap();
+        let res = self.client.request(req).await?;
         if res.status().is_success() {
             Ok(())
         } else {
@@ -60,7 +59,8 @@ impl Db {
                 res.status(),
                 k
             );
-            Err(DBErrors::NotSucc)
+            Err(DBErrors::NotFound(k.to_string()))
+
         }
     }
     ///Gets a key from the db.
@@ -68,8 +68,7 @@ impl Db {
         let res = self
             .client
             .get(format!("{}/{}", self.uri, k).parse::<Uri>().unwrap())
-            .await
-            .unwrap();
+            .await?;
         if res.status().is_success() {
             let buf = hyper::body::to_bytes(res).await.unwrap().to_vec();
             let string = std::str::from_utf8(&buf).unwrap();
@@ -80,7 +79,7 @@ impl Db {
                 res.status(),
                 k
             );
-            Err(DBErrors::NotSucc)
+            Err(DBErrors::NotFound(k.to_string()))
         }
     }
     ///Lists keys begining with an optional prefix.
@@ -90,10 +89,10 @@ impl Db {
             Some(k) => format!("{}?prefix={}", self.uri, k),
             None => format!("{}?prefix=", self.uri),
         };
-        let res = self.client.get(uri.parse::<Uri>().unwrap()).await.unwrap();
+        let res = self.client.get(uri.parse::<Uri>().unwrap()).await?;
         if res.status().is_success() {
-            let buf = hyper::body::to_bytes(res).await.unwrap().to_vec();
-            let string = std::str::from_utf8(&buf).unwrap();
+            let buf = hyper::body::to_bytes(res).await?.to_vec();
+            let string = std::str::from_utf8(&buf)?;
             let vec: Vec<String> = string.lines().map(|i| i.to_string()).collect();
             Ok(vec)
         } else {
