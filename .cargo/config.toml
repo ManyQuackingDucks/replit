@@ -1,0 +1,2 @@
+[registries]
+duck = { index = "https://registry.duckquack.repl.co/git/index" }
