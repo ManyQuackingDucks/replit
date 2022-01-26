@@ -22,6 +22,7 @@ impl Db {
             client: Client::builder().build::<_, hyper::Body>(HttpsConnector::new()),
         }
     }
+
     ///Insert's a key into the db
     pub async fn insert(&self, k: &str, v: &str) -> Result<()> {
         debug!("{}={}", k, v);
@@ -43,8 +44,9 @@ impl Db {
             Err(DBErrors::NotSucc)
         }
     }
+
     ///Deletes a key from the db.
-    pub async fn delete(&self, k: &str) -> Result<()> {
+    pub async fn remove(&self, k: &str) -> Result<()> {
         let req = Request::builder()
             .method(Method::DELETE)
             .uri(format!("{}/{}", self.uri, k).parse::<Uri>().unwrap())
@@ -62,6 +64,7 @@ impl Db {
             Err(DBErrors::NotFound(k.to_string()))
 
         }
+
     }
     ///Gets a key from the db.
     pub async fn get(&self, k: &str) -> Result<String> {
@@ -82,6 +85,7 @@ impl Db {
             Err(DBErrors::NotFound(k.to_string()))
         }
     }
+    
     ///Lists keys begining with an optional prefix.
     ///If None is supplied then list will output all keys.
     pub async fn list(&self, prefix: Option<&str>) -> Result<Vec<String>> {
