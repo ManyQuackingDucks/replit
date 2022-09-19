@@ -1,4 +1,10 @@
-use crate::error::DBErrors;
+use std::future::Future;
+use std::ops::Index;
+use std::pin::Pin;
+
+use crate::error::{DBErrors, self};
+
+use async_trait::async_trait;
 use hyper::client::connect::HttpConnector;
 use hyper::{Body, Client, Method, Request, Uri};
 use hyper_tls::HttpsConnector;
@@ -107,5 +113,19 @@ impl Db {
             );
             Err(DBErrors::NotSucc)
         }
+    }
+}
+
+impl Index<&'static str> for Db
+{
+    type Output = Box<dyn Future<Output=Result<String>>>;
+    /// Returns a reference to the value corresponding to the supplied key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not present.
+    fn index(&self, key: &'static str) -> &Self::Output{
+        let a: &Self::Output = &Box::new(self.get(key)) as;
+        a
     }
 }
