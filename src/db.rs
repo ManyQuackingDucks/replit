@@ -126,30 +126,3 @@ impl Db {
     }
 }
 
-impl<'a> Index<&str> for Db
-{
-    type Output = str;
-    /// Returns a reference to the value corresponding to the supplied key.
-    /// db["key"] will return a reference to the value of the key.
-    /// # Panics
-    ///
-    /// Panics if the key is not present.
-    fn index(&self, key: &str) -> &str
-    {
-        let (tx, rx) = mpsc::channel();
-        let key = key.to_string();
-        let rsrt = self.clone();
-        let arg = thread::spawn(move ||{
-            let ar = rsrt.runtime.clone();
-            ar.block_on(async move {
-                let res = rsrt._get(&key).await;
-                tx.send(res).unwrap();
-            });
-        });
-        arg.join().unwrap();
-        println!("Waiting for response");
-        #[allow(mutable_transmutes)] //Yes i know this unsafe but ive run out of ideas it keeps halting
-        unsafe { transmute::<&Self, &mut Self>(self).reer = rx.recv_timeout(Duration::new(3, 0)).unwrap().unwrap();} 
-        std::str::from_utf8(&self.reer).unwrap()
-    }
-}
