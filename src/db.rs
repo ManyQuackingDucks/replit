@@ -1,10 +1,13 @@
-use std::future::Future;
+
+use std::marker::PhantomData;
+use std::mem::transmute;
 use std::ops::Index;
-use std::pin::Pin;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
-use crate::error::{DBErrors, self};
 
-use async_trait::async_trait;
+use crate::error::{DBErrors};
 use hyper::client::connect::HttpConnector;
 use hyper::{Body, Client, Method, Request, Uri};
 use hyper_tls::HttpsConnector;
@@ -15,17 +18,21 @@ pub type Result<T> = std::result::Result<T, crate::error::DBErrors>;
 pub struct Db {
     uri: String,
     client: Client<HttpsConnector<HttpConnector>>,
+    runtime: tokio::runtime::Handle,
+    reer: Vec<u8>,
 }
 impl Db {
     ///Create a new struct that can be used to interact with the db.
-    pub fn new() -> Result<Self> {
-        Ok(Self::new_with_url(std::env::var("REPLIT_DB_URL").unwrap()))
+    pub async fn new() -> Result<Self> {
+        Ok(Self::new_with_url(std::env::var("REPLIT_DB_URL")?).await)
     }
-    pub fn new_with_url(url: String) -> Self {
+    pub async fn new_with_url(url: String) -> Self {
         debug!("{}", url);
         Self {
             uri: url,
             client: Client::builder().build::<_, hyper::Body>(HttpsConnector::new()),
+            runtime: tokio::runtime::Handle::current(),
+            reer: vec![],
         }
     }
 
@@ -73,15 +80,18 @@ impl Db {
 
     }
     ///Gets a key from the db.
-    pub async fn get(&self, k: &str) -> Result<String> {
+    pub async fn get(&self, k: &str) -> Result<String>{
+        Ok(std::str::from_utf8(&self._get(k).await?).unwrap().to_string())
+    }
+    async fn _get(&self, k: &str) -> Result<Vec<u8>> {
         let res = self
             .client
             .get(format!("{}/{}", self.uri, k).parse::<Uri>().unwrap())
             .await?;
         if res.status().is_success() {
             let buf = hyper::body::to_bytes(res).await.unwrap().to_vec();
-            let string = std::str::from_utf8(&buf).unwrap();
-            Ok(string.to_owned()) //returns a borrowed string that lasts the Db's lifetime
+            
+            Ok(buf) //returns a borrowed string that lasts the Db's lifetime
         } else {
             error!(
                 "Failed to get key from db. Status code: {}, Input: {}",
@@ -116,16 +126,30 @@ impl Db {
     }
 }
 
-impl Index<&'static str> for Db
+impl<'a> Index<&str> for Db
 {
-    type Output = Box<dyn Future<Output=Result<String>>>;
+    type Output = str;
     /// Returns a reference to the value corresponding to the supplied key.
-    ///
+    /// db["key"] will return a reference to the value of the key.
     /// # Panics
     ///
     /// Panics if the key is not present.
-    fn index(&self, key: &'static str) -> &Self::Output{
-        let a: &Self::Output = &Box::new(self.get(key)) as;
-        a
+    fn index(&self, key: &str) -> &str
+    {
+        let (tx, rx) = mpsc::channel();
+        let key = key.to_string();
+        let rsrt = self.clone();
+        let arg = thread::spawn(move ||{
+            let ar = rsrt.runtime.clone();
+            ar.block_on(async move {
+                let res = rsrt._get(&key).await;
+                tx.send(res).unwrap();
+            });
+        });
+        arg.join().unwrap();
+        println!("Waiting for response");
+        #[allow(mutable_transmutes)] //Yes i know this unsafe but ive run out of ideas it keeps halting
+        unsafe { transmute::<&Self, &mut Self>(self).reer = rx.recv_timeout(Duration::new(3, 0)).unwrap().unwrap();} 
+        std::str::from_utf8(&self.reer).unwrap()
     }
 }

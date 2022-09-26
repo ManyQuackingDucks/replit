@@ -16,4 +16,9 @@ pub enum DBErrors {
     NotFound(String),
     #[error("The request did not return with success.")]
     NotSucc,
+    #[error("You are not on replit please define the REPLIT_DB_URL environment variable or use the new_with_url function.")]
+    KeyNotDefined{
+        #[from]
+        source: std::env::VarError,
+    },
 }

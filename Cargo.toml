@@ -12,10 +12,9 @@ hyper = {version = "0.14.6", default-features=false, features = ["http1", "clien
 thiserror = "1.0.30"
 hyper-tls = "0.5.0"
 log = "0.4.14"
-async-trait = "0.1.57"
-
-[dev-dependencies]
 tokio = {version = "1.15.0", default-features=false, features = ["macros", "rt"]}
+futures = "0.3.24"
+[dev-dependencies]
 lazy_static = "1.4.0"
 
 [lib]
