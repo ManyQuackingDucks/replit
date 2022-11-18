@@ -11,8 +11,6 @@ async fn test_all() {
     let db = Db::new_with_url(TEST_URL.to_string()).await;
     db.insert("k", "v").await.unwrap();
     assert_eq!(db.get("k").await.unwrap(), "v");
-    let gar = &db["k"];
-    assert_eq!(gar, "v");
     let list = db.list(None).await.unwrap();
     assert_eq!(list[0], "k");
     let list = db.list(Some("k")).await.unwrap();

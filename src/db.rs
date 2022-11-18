@@ -1,7 +1,10 @@
 
-
+use std::marker::PhantomData;
+use std::mem::transmute;
 use std::ops::Index;
-use crossbeam::channel;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
 
 use crate::error::{DBErrors};
@@ -121,31 +124,3 @@ impl Db {
     }
 }
 
-impl<'a> Index<&str> for Db
-{
-    type Output = str;
-    /// Returns a reference to the value corresponding to the supplied key.
-    /// db["key"] will return a reference to the value of the key.
-    /// # Panics
-    ///
-    /// Panics if the key is not present.
-    fn index(&self, key: &str) -> &str
-    {
-        let (tx, rx) = channel::bounded(1);
-        let key = key.to_string();
-        let rsrt = self.clone();
-        self.runtime.spawn(async move {
-            let res = rsrt.get(&key).await;
-            tx.send(res).unwrap();
-        });
-        let res = rx.recv().unwrap().unwrap();
-        Box::leak(Box::new(res))
-    }
-}
-#[tokio::test]
-async fn target(){
-    let DB = Db::new_with_url("https://kv.replit.com/v0/eyJhbGciOiJIUzUxMiIsImlzcyI6ImNvbm1hbiIsImtpZCI6InByb2Q6MSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjb25tYW4iLCJleHAiOjE2NjQzMzMxODAsImlhdCI6MTY2NDIyMTU4MCwiZGF0YWJhc2VfaWQiOiI4OWFiZThkOS1lZGMxLTQ1ODgtOGIzMS0wZWI0MGRjOGFiNjMiLCJ1c2VyIjoiRHVja1F1YWNrIiwic2x1ZyI6IlJlcGxpdC1Ub2tlbi1TY2FubmVyIn0.EOe1NKJGRusI-v8-yQts01Q43qwFgQbP3Tw6aXzspA-FI_jeGCRS4Ud5k1YGnlmriEBpc5xrXQ6-NtE213--_w".to_string()).await;
-    DB.insert("test", "test").await.unwrap();
-    assert_eq!(&DB["test"], "test");
-    DB.remove("test").await.unwrap();
-}
