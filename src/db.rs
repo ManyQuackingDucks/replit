@@ -1,39 +1,25 @@
-
-use std::marker::PhantomData;
-use std::mem::transmute;
-use std::ops::Index;
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
-
-
 use crate::error::{DBErrors};
 use hyper::client::connect::HttpConnector;
 use hyper::{Body, Client, Method, Request, Uri};
 use hyper_tls::HttpsConnector;
 use log::{debug, error};
+lazy_static::lazy_static! {
+    pub static ref DB: Db = Db::new().unwrap();
+}
 pub type Result<T> = std::result::Result<T, crate::error::DBErrors>;
 
 #[derive(Clone)]
 pub struct Db {
     uri: String,
     client: Client<HttpsConnector<HttpConnector>>,
-    runtime: tokio::runtime::Handle,
-    reer: Vec<u8>,
 }
 impl Db {
     ///Create a new struct that can be used to interact with the db.
-    pub async fn new() -> Result<Self> {
-        Ok(Self::new_with_url(std::env::var("REPLIT_DB_URL")?).await)
-    }
-    pub async fn new_with_url(url: String) -> Self {
-        debug!("{}", url);
-        Self {
-            uri: url,
+    fn new() -> Result<Self> {
+        Ok(Self {
+            uri: std::env::var("REPLIT_DB_URL")?,
             client: Client::builder().build::<_, hyper::Body>(HttpsConnector::new()),
-            runtime: tokio::runtime::Handle::current(),
-            reer: vec![],
-        }
+        })
     }
 
     ///Insert's a key into the db
@@ -80,18 +66,15 @@ impl Db {
 
     }
     ///Gets a key from the db.
-    pub async fn get(&self, k: &str) -> Result<String>{
-        Ok(std::str::from_utf8(&self._get(k).await?).unwrap().to_string())
-    }
-    async fn _get(&self, k: &str) -> Result<Vec<u8>> {
-        let res = self
+    pub async fn get(&self, k: &str) -> Result<String> {
+        let mut res = self
             .client
             .get(format!("{}/{}", self.uri, k).parse::<Uri>().unwrap())
             .await?;
         if res.status().is_success() {
-            let buf = hyper::body::to_bytes(res).await.unwrap().to_vec();
-            
-            Ok(buf) //returns a borrowed string that lasts the Db's lifetime
+            let string = hyper::body::to_bytes(res.body_mut()).await?.to_vec();
+            let string = std::str::from_utf8(&string)?.to_string();
+            Ok(string) //returns a borrowed string that lasts the Db's lifetime
         } else {
             error!(
                 "Failed to get key from db. Status code: {}, Input: {}",
@@ -125,4 +108,3 @@ impl Db {
         }
     }
 }
-
